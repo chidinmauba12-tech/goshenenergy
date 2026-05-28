@@ -1,8 +1,23 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Clock } from "lucide-react";
+import { createFileRoute } from "@tanstack/react-router";
+import { Clock } from "lucide-react";
 import { Eyebrow, SectionHeader } from "@/components/Section";
+import { sanityClient } from "@/lib/sanity";
 
 export const Route = createFileRoute("/blog")({
+  loader: async () => {
+    const posts = await sanityClient.fetch<SanityPost[]>(`
+      *[_type == "post"] | order(coalesce(publishedAt, _createdAt) desc) {
+        _id,
+        title,
+        "tag": coalesce(category->title, "Insights"),
+        "excerpt": coalesce(excerpt, pt::text(body)[0...180]),
+        "read": coalesce(readTime, "5 min read"),
+        "date": coalesce(publishedAt, _createdAt)
+      }
+    `);
+
+    return posts;
+  },
   head: () => ({
     meta: [
       { title: "Blog — Solar Energy Tips & Insights for Nigerians | Goshen Energy" },
@@ -14,52 +29,48 @@ export const Route = createFileRoute("/blog")({
   component: BlogPage,
 });
 
-const posts = [
-  {
-    tag: "Education",
-    title: "How solar actually works — a simple guide for Nigerian homes",
-    excerpt: "Forget the jargon. Here's the plain-English explanation of how solar panels, inverters and batteries work together to power your home.",
-    read: "6 min read",
-    date: "May 10, 2026",
-  },
-  {
-    tag: "Save money",
-    title: "Solar vs. generator: how much you really save in 12 months",
-    excerpt: "We break down the real numbers — fuel, servicing, noise and stress — and what a solar system gives back instead.",
-    read: "5 min read",
-    date: "May 04, 2026",
-  },
-  {
-    tag: "Tips",
-    title: "5 energy-saving habits every Nigerian household should know",
-    excerpt: "Small changes that lower your bill, extend your battery life and make your solar system go even further.",
-    read: "4 min read",
-    date: "Apr 22, 2026",
-  },
-  {
-    tag: "Business",
-    title: "Why more SMEs in Nigeria are switching to solar in 2026",
-    excerpt: "From salons to schools, business owners are tired of fuel costs. Here's how solar is changing the game.",
-    read: "7 min read",
-    date: "Apr 15, 2026",
-  },
-  {
-    tag: "Renewables",
-    title: "The future of renewable energy in Nigeria — what to expect",
-    excerpt: "Where the market is heading, what's getting cheaper, and how Nigerians can benefit from the clean energy shift.",
-    read: "8 min read",
-    date: "Apr 02, 2026",
-  },
-  {
-    tag: "Buying guide",
-    title: "Inverter sizing 101: pick the right system the first time",
-    excerpt: "A step-by-step guide to figuring out the right inverter and battery capacity for your home or office.",
-    read: "6 min read",
-    date: "Mar 24, 2026",
-  },
-];
+type SanityPost = {
+  _id: string;
+  title: string;
+  tag: string;
+  excerpt: string;
+  read: string;
+  date: string;
+};
+
+function formatBlogDate(date: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  }).format(new Date(date));
+}
 
 function BlogPage() {
+  const posts = Route.useLoaderData();
+
+  if (posts.length === 0) {
+    return (
+      <>
+        <section className="bg-hero-glow">
+          <div className="container-page pt-12 md:pt-20 pb-12 text-center">
+            <Eyebrow>Insights</Eyebrow>
+            <h1 className="mt-5 text-4xl md:text-6xl font-semibold leading-[1.05] max-w-3xl mx-auto">
+              Smarter energy, <span className="text-gradient-sun">simply explained.</span>
+            </h1>
+            <p className="mt-5 text-lg text-muted-foreground max-w-2xl mx-auto">
+              Solar education, saving tips and Nigerian energy insights — written
+              for real people, not engineers.
+            </p>
+          </div>
+        </section>
+        <section className="container-page py-16 text-center text-muted-foreground">
+          No posts yet. New articles from Sanity will appear here automatically.
+        </section>
+      </>
+    );
+  }
+
   const [feature, ...rest] = posts;
   return (
     <>
@@ -84,12 +95,9 @@ function BlogPage() {
             <h2 className="mt-3 text-2xl md:text-4xl font-semibold leading-tight">{feature.title}</h2>
             <p className="mt-4 text-muted-foreground leading-relaxed">{feature.excerpt}</p>
             <div className="mt-5 flex items-center gap-4 text-sm text-muted-foreground">
-              <span>{feature.date}</span>
+              <span>{formatBlogDate(feature.date)}</span>
               <span className="inline-flex items-center gap-1"><Clock className="size-3.5" />{feature.read}</span>
             </div>
-            <Link to="/blog" className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-primary">
-              Read article <ArrowRight className="size-4" />
-            </Link>
           </div>
         </article>
 
@@ -102,7 +110,7 @@ function BlogPage() {
                 <h3 className="mt-2 text-lg font-semibold leading-snug group-hover:text-primary transition">{p.title}</h3>
                 <p className="mt-2 text-sm text-muted-foreground line-clamp-3">{p.excerpt}</p>
                 <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{p.date}</span>
+                  <span>{formatBlogDate(p.date)}</span>
                   <span className="inline-flex items-center gap-1"><Clock className="size-3" />{p.read}</span>
                 </div>
               </div>
