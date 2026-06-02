@@ -1,1 +1,1 @@
-Goshen energy website.
+Goshen energy website copy 
